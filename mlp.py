@@ -4,43 +4,58 @@ import numpy as np
 
 
 class NetworkLayer(object):
-    def __init__(self,number_inputs, number_neurons,number_layer,number_outputs):
-        for index in range(number_layer):
+    def __init__(self,number_inputs, number_neurons):
+        self.h = []
+        for index in range(len(number_neurons)):
             if(index == 0):
-                self.h = np.array(number_neurons[0],dtype=Neuron(number_inputs=number_inputs,act_funct='relu',alpha=alpha))
+                self.h.append(NeuronLayer(number_inputs=number_inputs,number_neurons=number_neurons[index]))
             else:
-                self.h.append(Neuron(number_inputs=number_neurons[index-1],act_funct='relu',alpha=alpha))
+                self.h.append(NeuronLayer(number_inputs=number_neurons[index-1],number_neurons=number_neurons[index]))
 
     def feedforward_layer(self,input):
         for index, y in enumerate(self.h):
             if(index == 0):
-                y.feedforward(in)
+                y.feedforward_layer(input)
             else:
-                y.feedforward(self.h[index-1].output)
-        return x
+                y.feedforward_layer(self.h[index-1].output)
+        return y.output[-1:]
+
+    def backward_layer(self,input):
+        temp = self.h[::-1]
+        for index, y in enumerate(temp):
+            if(index == 0):
+                y.backpropagation_layer(input)
+            else:
+                y.backpropagation_h_layer(temp[index-1].update,temp[index-1].weights)
 
 class NeuronLayer(object):
-    input = np.array()
-    output = np.array()
+#    input = np.array(1)
+#    output = np.array(1)
 #    weights = np.array()
 
     def __init__(self,number_inputs, number_neurons):
-        alpha = 0.01
-        input = np.array(number_inputs)
-        output = np.array(number_neurons)
-#        weights = np.array()
-        self.h = np.array(number_neurons,dtype=Neuron(number_inputs=number_inputs,act_funct='relu',alpha=alpha))
-
+        self.alpha = 0.01
+        self.input = np.zeros(number_inputs)
+        self.output = np.zeros(number_neurons)
+        self.update = np.zeros((number_inputs,number_neurons))
+        self.weights = np.zeros((number_inputs,number_neurons))
+        self.h = [ Neuron(number_inputs=number_inputs,act_funct='relu',alpha=self.alpha) for i in range(number_neurons)]
+       
     def feedforward_layer(self,data):
-        input = data
+        self.input = data
         for index, y in enumerate(self.h):
-            y.feedforward(data)
-            output[index]=y.output
+            self.weights[:,index]=y.weights
+            y.feedforward(self.input)
+            self.output[index]=y.output
 
     def backpropagation_layer(self,delta):
         for index, y in enumerate(self.h):
-            y.backpropagation(delta)
+            self.update[:,index] = y.backpropagation(delta)
+            
 
+    def backpropagation_h_layer(self,delta,weights):
+        for index, y in enumerate(self.h):
+            self.update[:,index] = y.backpropagation(delta[index]*weights[index])
 
 class Neuron(object):
     net = 0
@@ -64,8 +79,9 @@ class Neuron(object):
         self.act_f          = act_funct
         self.lambda_r       = reg_lambda
         self.bias_flag      = bias_flag
-        self.bias           = 0.5
+        self.bias           = 0.0
         self.number_inputs  = number_inputs
+        #self.weights        = np.ones(self.number_inputs)
         self.weights        = 2 * np.random.random((self.number_inputs)) - 1
         self.output         = 0
         self.alpha          = alpha
@@ -101,7 +117,7 @@ class Neuron(object):
     def backpropagation(self,delta):
         self.update = delta * self.activation_function_derivative(self.net)
         self.weights = self.weights - self.alpha * self.update * self.input 
-        return self.weights
+        return (np.ones(self.number_inputs)*self.update)
 
     def sigmoid(self, z):
         '''
@@ -146,38 +162,28 @@ if __name__ == "__main__":
     pass
     in1 = np.array([0,1,0,1])
     in2 = np.array([0,0,1,1])
-    ref_out = np.array([0,0,0,1])
+    ref_out = np.array([0,1,1,1])
     alpha = 0.01
-
-
-        
-    out_layer  = Neuron(number_inputs=5,act_funct='sigmoid')
     
-    weights=[]
-    error=[]
+    nn = NetworkLayer(number_inputs=2,number_neurons=[2,1])
+
+
     for train in range(500000):
-        
-        #weights.append([h1.weights[0],h1.weights[1],h2.weights[0],h2.weights[1],out_layer.weights[0],out_layer.weights[1]])
+       
         for index in range(len(in1)):
-            net_input   =   [in1[index], in2[index]]
-
-            act_vh1     =   h1.feedforward(np.array(net_input))
-            act_vh2     =   h2.feedforward(np.array(net_input))
-            act_vh3     =   h3.feedforward(np.array(net_input))
-            act_vh4     =   h4.feedforward(np.array(net_input))
-            act_vh5     =   h5.feedforward(np.array(net_input))     
-
-            act_out     =   out_layer.feedforward(np.array([act_vh1,act_vh2,act_vh3,act_vh4,act_vh5]))
-            
+            net_input   =   np.array([in1[index], in2[index]])
+            act_out     =   nn.feedforward_layer(net_input)
             delta       =   act_out - ref_out[index]
-            out_layer.backpropagation(delta)
-            h1.backpropagation(out_layer.weights[0]*out_layer.update)
-            h2.backpropagation(out_layer.weights[1]*out_layer.update)
-            h3.backpropagation(out_layer.weights[2]*out_layer.update)
-            h4.backpropagation(out_layer.weights[3]*out_layer.update)
-            h5.backpropagation(out_layer.weights[4]*out_layer.update)
-            if(np.mod(train,20000)==0):
-                print("{:6.0f}".format(train),": ",net_input,"{:5.3f}".format(act_out),ref_out[index],"{:5.3f}".format(delta))
+            nn.backward_layer(delta)
+            #print("{:6.0f}".format(train),": ",net_input,"{:5.3f}".format(act_out),ref_out[index],"{:5.3f}".format(delta))
+            if(np.mod(train,1000)==0):
+                for i in range(len(in1)):
+                    net_input   =   np.array([in1[i], in2[i]])
+                    act_out     =   nn.feedforward_layer(net_input)
+                    delta       =   act_out - ref_out[i]
+                    #print(net_input,,"{:5.3f}".format(act_out),delta)                    
+                    print("{:6.0f}".format(int(train)),": ",net_input,"{:5.3f}".format(int(act_out)),ref_out[index],"{:5.3f}".format(int(delta)))
+#                print("{:6.0f}".format(train),": ",net_input,"{:5.3f}".format(act_out),ref_out[index],"{:5.3f}".format(delta))
 
     # create plot
     #plt = pg.plot()
