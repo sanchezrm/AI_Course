@@ -48,9 +48,10 @@ class NeuronLayer(object):
             y.feedforward(self.input)
             self.output[index]=y.output
 
-    def backpropagation_layer(self,delta):
+    def backpropagation_layer2(self,delta):
         for index, y in enumerate(self.h):
-            self.update[:,index] = y.backpropagation(delta)
+            for i in range(index):
+                y.backpropagation(delta)
             
 
     def backpropagation_h_layer(self,delta,weights):
@@ -62,7 +63,7 @@ class Neuron(object):
     input = []
     output = 0
     udapte = 0
-    def __init__(self, number_inputs, act_funct='relu', reg_lambda=0, bias_flag=False,alpha=0.001):
+    def __init__(self, number_inputs, act_funct='relu', reg_lambda=0, bias_flag=False,alpha=0.001,type='hidden'):
         '''
             Constructor method. Defines the characteristics of the MLP
         Arguments:
@@ -85,7 +86,8 @@ class Neuron(object):
         self.weights        = 2 * np.random.random((self.number_inputs)) - 1
         self.output         = 0
         self.alpha          = alpha
-
+        self.bpnet          = 0
+        self.type           = type
     def activation_function(self,x):
         if self.act_f == 'sigmoid':
             g = self.sigmoid(x)
@@ -114,8 +116,11 @@ class Neuron(object):
         self.output = self.activation_function(self.net)
         return self.output
   
-    def backpropagation(self,delta):
-        self.update = delta * self.activation_function_derivative(self.net)
+    def backpropagation(self,delta,weights):
+        if (self.type == 'output'):
+            self.update = delta * self.activation_function_derivative(self.net)
+        else:
+            self.update = delta * weights * self.activation_function_derivative(self.net)
         self.weights = self.weights - self.alpha * self.update * self.input 
         return (np.ones(self.number_inputs)*self.update)
 
